@@ -4,3 +4,40 @@ GET {{FilterBuilderApi_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+POST {{FilterBuilderApi_HostAddress}}/search
+Content-Type: application/json
+
+[
+  "Age", ">", 30
+]
+
+###
+
+POST {{FilterBuilderApi_HostAddress}}/search
+Content-Type: application/json
+
+[
+  ["Department", "=", "Engineering"],
+  "and",
+  ["Active", "=", true]
+]
+
+###
+
+POST {{FilterBuilderApi_HostAddress}}/search
+Content-Type: application/json
+
+[
+  "Name", "contains", "Alice"
+]
+
+###
+
+POST {{FilterBuilderApi_HostAddress}}/search
+Content-Type: application/json
+
+[]
+
+###
+
