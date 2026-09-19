@@ -1,0 +1,6 @@
+@FilterBuilderApi_HostAddress = http://localhost:5063
+
+GET {{FilterBuilderApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
