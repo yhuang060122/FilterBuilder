@@ -31,4 +31,14 @@ public class SearchController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("search-by")]
+    public async Task<IActionResult> SearchBy()
+    {
+        var result = await _db.UniverseVersions
+            .LatestBy(x => x.UniverseId, x => x.Version)
+            .ToListAsync();
+
+        return Ok(result);
+    }
 }
