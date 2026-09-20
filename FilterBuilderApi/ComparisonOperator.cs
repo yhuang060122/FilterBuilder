@@ -12,6 +12,4 @@ public enum ComparisonOperator
     Contains,
     StartsWith,
     EndsWith,
-
-    In
 }

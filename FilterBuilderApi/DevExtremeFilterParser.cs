@@ -2,72 +2,107 @@ using System.Text.Json.Nodes;
 
 public static class DevExtremeFilterParser
 {
-    public static FilterGroup Parse(JsonArray filter)
-    {
-        return ParseGroup(filter);
-    }
+    public static FilterGroup Parse(JsonArray filter) => ParseGroup(filter);
 
     private static FilterGroup ParseGroup(JsonArray array)
     {
-        var group = new FilterGroup();
-
-        LogicalOperator currentOperator = LogicalOperator.And;
-
-        foreach(var node in array)
+        if(IsNotGroup(array))
         {
-            if (node == null)
-                continue;
+            var inner = ParseGroup((JsonArray)array[1]!);
+            inner.Not = true;
+            return inner;
+        }
 
-            // "and" / "or"
-            if (node is JsonValue value &&
-                value.TryGetValue<string>(out var op))
+        var andGroups = SplitByOr(array)
+            .Select(ParseAndGroup)
+            .ToList();
+        
+        return andGroups.Count == 1
+        ? andGroups[0]
+        : new FilterGroup
+        {
+            Operator = LogicalOperator.Or,
+            Groups = andGroups
+        };
+    }
+
+    private static FilterGroup ParseAndGroup(List<JsonNode?> nodes)
+    {
+        var group = new FilterGroup
+        {
+            Operator = LogicalOperator.And
+        };
+
+        foreach(var node in nodes)
+        {
+            var array = (JsonArray)node!;
+
+            if(IsRule(array))
             {
-                currentOperator = op.ToLower() == "or"
-                    ? LogicalOperator.Or
-                    : LogicalOperator.And;
-
-                group.Operator = currentOperator;
-                continue;
+                group.Rules.Add(ParseRule(array));
             }
-
-            if (node is not JsonArray child)
-                continue;
-
-            // Rule : ["Age", ">", 30]
-            if (IsRule(child))
-            {
-                group.Rules.Add(ParseRule(child));
-            }
-            // Nested Group
             else
             {
-                group.Groups.Add(ParseGroup(child));
+                group.Groups.Add(ParseGroup(array));
             }
         }
 
         return group;
     }
 
-    private static bool IsRule(JsonArray array)
+
+    private static List<List<JsonNode?>> SplitByOr(JsonArray array)
     {
-        return array.Count == 3 && 
-        array[0] is JsonValue &&
-        array[1] is JsonValue;
+        var result = new List<List<JsonNode?>>();
+        var current = new List<JsonNode?>();
+
+        foreach(var node in array)
+        {
+            if(node is JsonValue value && value.TryGetValue<string>(out var token))
+            {
+                switch(token)
+                {
+                    case "or":
+                        result.Add(current);
+                        current = new();
+                        break;
+                    case "and":
+                        break;
+                    default:
+                        throw new NotSupportedException(
+                            $"Unexpected token: {token}");
+                }
+                continue;
+            }
+
+            current.Add(node);
+        }
+
+        result.Add(current);
+
+        return result;
     }
+
+
+
+    private static bool IsNotGroup(JsonArray array)
+        => array.Count  == 2 &&
+            array[0] is JsonValue value &&
+            value.TryGetValue<string>(out var token) &&
+            token == "!";
+
+    private static bool IsRule(JsonArray array)
+        => array.Count == 3 &&
+            array[0] is JsonValue &&
+            array[1] is JsonValue;
 
     private static FilterRule ParseRule(JsonArray array)
-    {
-        var property = array[0]!.GetValue<string>();
-        var op = array[1]!.GetValue<string>();
-        var value = GetValue(array[2]);
-
-        return new FilterRule
+        => new FilterRule
         {
-            Property = property,
-            Operator = MapOperator(op),
-            Value = value
+            Property = array[0]!.GetValue<string>(),
+            Operator = MapOperator(array[1]!.GetValue<string>()),
+            Value = GetValue(array[2])
         };
-    }
 
     private static object? GetValue(JsonNode? node)
     {
